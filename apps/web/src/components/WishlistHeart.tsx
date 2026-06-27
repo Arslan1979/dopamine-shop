@@ -1,37 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useAuthStore } from '../stores/authStore';
 
 interface WishlistHeartProps {
-  productId: string;
-  initialActive?: boolean;
-  onToggle?: (active: boolean) => void;
+  product: {
+    id: string;
+    name: string;
+    slug: string;
+    price: number;
+    imageUrl: string;
+    category: { id: string; name: string; slug: string };
+  };
 }
 
-export default function WishlistHeart({ productId, initialActive = false, onToggle }: WishlistHeartProps) {
-  const [active, setActive] = useState(initialActive);
-  const [animating, setAnimating] = useState(false);
+export default function WishlistHeart({ product }: WishlistHeartProps) {
   const token = useAuthStore((s) => s.token);
-  const toggleItem = useWishlistStore((s) => s.toggleItem);
+  const { toggle, isInWishlist } = useWishlistStore();
+  const active = isInWishlist(product.id);
+  const [animating, setAnimating] = useState(false);
 
-  async function handleToggle(e: React.MouseEvent) {
+  async function handleClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-
     setAnimating(true);
-    setActive(!active);
-
-    await toggleItem(productId, token || undefined);
+    await toggle(product, token);
     setTimeout(() => setAnimating(false), 300);
   }
 
   return (
     <motion.button
-      onClick={handleToggle}
+      onClick={handleClick}
       whileTap={{ scale: 0.8 }}
-      className="p-2 rounded-full transition-colors"
+      className="p-2 rounded-full transition-colors bg-white/80 backdrop-blur hover:bg-white"
       aria-label={active ? 'Удалить из избранного' : 'Добавить в избранное'}
     >
       <motion.div

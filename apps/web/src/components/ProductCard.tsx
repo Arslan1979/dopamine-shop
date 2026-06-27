@@ -43,10 +43,7 @@ export default function ProductCard({ product, variant = 'grid', onAddToCart }: 
           }`}
         />
         <div className="absolute top-3 right-3">
-          <WishlistHeart
-            productId={product.id}
-            initialActive={false}
-            onToggle={() => {}}
+          <WishlistHeart product={product}
           />
         </div>
       </div>
