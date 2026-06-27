@@ -5,6 +5,8 @@ import { ShoppingCart, Heart, ChevronLeft, ChevronRight, ArrowLeft } from 'lucid
 import type { Product } from '@dopamine-shop/shared-types';
 import ProductCard from '../components/ProductCard';
 import { useCartStore } from '../stores/cartStore';
+import WishlistHeart from '../components/WishlistHeart';
+import { useWishlistStore } from '../stores/wishlistStore';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -16,7 +18,7 @@ export default function ProductDetailPage() {
   const [error, setError] = useState('');
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const isInWishlist = useWishlistStore((s) => s.isInWishlist);
   const addItem = useCartStore((s) => s.addItem);
 
   useEffect(() => {
@@ -164,23 +166,14 @@ export default function ProductDetailPage() {
             </div>
 
             <button
-              onClick={() => addItem(product.id, quantity)}
+              onClick={() => addItem(product.slug, quantity)}
               className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white py-3 rounded-xl font-medium hover:bg-primary-700 transition-colors active:scale-[0.98]"
             >
               <ShoppingCart className="w-5 h-5" />
               Добавить в корзину
             </button>
 
-            <button
-              onClick={() => setIsWishlisted(!isWishlisted)}
-              className={`p-3 border rounded-xl transition-colors ${
-                isWishlisted
-                  ? 'border-red-200 bg-red-50 text-red-500'
-                  : 'border-slate-200 hover:bg-slate-50 text-slate-400'
-              }`}
-            >
-              <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
-            </button>
+            <WishlistHeart product={product} />
           </div>
         </div>
       </div>
