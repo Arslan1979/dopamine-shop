@@ -18,7 +18,7 @@ interface CartState {
   error: string | null;
   totalItems: number;
   totalPrice: number;
-  addItem: (productId: string, quantity: number) => void;
+  addItem: (productSlug: string, quantity: number) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -44,40 +44,38 @@ export const useCartStore = create<CartState>()(
       totalItems: 0,
       totalPrice: 0,
 
-      addItem: (productId, quantity) => {
-        const { items } = get();
-        const existing = items.find((i) => i.productId === productId);
+      addItem: (productSlug, quantity) => {
+  const { items } = get();
+  // Ищем по slug, т.к. productId в хранилище — UUID от API
+  const existing = items.find((i) => i.product.slug === productSlug);
 
-        if (existing) {
-          const updated = items.map((i) =>
-            i.productId === productId
-              ? { ...i, quantity: Math.min(99, i.quantity + quantity) }
-              : i
-          );
-          set({ items: updated, ...calculateTotals(updated) });
-        } else {
-          // Fetch product details and add
-          fetch(`${API_URL}/products/${productId}`)
-            .then((res) => {
-              if (!res.ok) throw new Error('Товар не найден');
-              return res.json();
-            })
-            .then((data) => {
-              const newItem: CartItem = {
-                id: crypto.randomUUID(),
-                productId: data.product.id, // UUID из ответа API
-                quantity,
-                product: data.product,
-              };
-              const updated = [...get().items, newItem];
-              set({ items: updated, ...calculateTotals(updated) });
-            })
-            .catch(() => {
-            // silently fail or show toast
-            });
-        }
-        set({ isOpen: true });
-      },
+  if (existing) {
+    const updated = items.map((i) =>
+      i.product.slug === productSlug
+        ? { ...i, quantity: Math.min(99, i.quantity + quantity) }
+        : i
+    );
+    set({ items: updated, ...calculateTotals(updated) });
+  } else {
+    fetch(`${API_URL}/products/${productSlug}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Товар не найден');
+        return res.json();
+      })
+      .then((data) => {
+        const newItem: CartItem = {
+          id: crypto.randomUUID(),
+          productId: data.product.id, // UUID для синхронизации с сервером
+          quantity,
+          product: data.product,
+        };
+        const updated = [...get().items, newItem];
+        set({ items: updated, ...calculateTotals(updated) });
+      })
+      .catch(() => {});
+  }
+  set({ isOpen: true });
+},
 
       removeItem: (id) => {
         const updated = get().items.filter((i) => i.id !== id);
