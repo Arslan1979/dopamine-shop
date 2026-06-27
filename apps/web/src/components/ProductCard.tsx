@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { ShoppingCart, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Product } from '@dopamine-shop/shared-types';
+import WishlistHeart from './WishlistHeart';
+import { useAuthStore } from '../stores/authStore';
 
 interface ProductCardProps {
   product: Product;
@@ -13,6 +15,7 @@ interface ProductCardProps {
 export default function ProductCard({ product, variant = 'grid', onAddToCart }: ProductCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const token = useAuthStore((s) => s.token);
 
   return (
     <motion.article
@@ -39,20 +42,13 @@ export default function ProductCard({ product, variant = 'grid', onAddToCart }: 
             imageLoaded ? 'opacity-100' : 'opacity-0'
           }`}
         />
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            setIsWishlisted(!isWishlisted);
-          }}
-          className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur rounded-full hover:bg-white transition-colors"
-          aria-label={isWishlisted ? 'Удалить из избранного' : 'Добавить в избранное'}
-        >
-          <Heart
-            className={`w-4 h-4 transition-colors ${
-              isWishlisted ? 'fill-red-500 text-red-500' : 'text-slate-400'
-            }`}
+        <div className="absolute top-3 right-3">
+          <WishlistHeart
+            productId={product.id}
+            initialActive={false}
+            onToggle={() => {}}
           />
-        </button>
+        </div>
       </div>
 
       <div className="p-4 flex flex-col flex-1">
@@ -69,7 +65,7 @@ export default function ProductCard({ product, variant = 'grid', onAddToCart }: 
             {product.price.toLocaleString('ru-RU')} ₽
           </span>
           <button
-            onClick={() => onAddToCart?.(product.id, 1)}
+            onClick={() => onAddToCart?.(product.slug, 1)}
             className="flex items-center gap-1.5 bg-primary-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors active:scale-95"
             aria-label={`Добавить ${product.name} в корзину`}
           >

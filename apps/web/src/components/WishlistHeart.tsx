@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Heart } from 'lucide-react';
+import { useWishlistStore } from '../stores/wishlistStore';
+import { useAuthStore } from '../stores/authStore';
 
 interface WishlistHeartProps {
   productId: string;
@@ -11,6 +13,8 @@ interface WishlistHeartProps {
 export default function WishlistHeart({ productId, initialActive = false, onToggle }: WishlistHeartProps) {
   const [active, setActive] = useState(initialActive);
   const [animating, setAnimating] = useState(false);
+  const token = useAuthStore((s) => s.token);
+  const toggleItem = useWishlistStore((s) => s.toggleItem);
 
   async function handleToggle(e: React.MouseEvent) {
     e.preventDefault();
@@ -19,10 +23,7 @@ export default function WishlistHeart({ productId, initialActive = false, onTogg
     setAnimating(true);
     setActive(!active);
 
-    // API call would go here in real implementation
-    // For now, just toggle locally
-    onToggle?.(!active);
-
+    await toggleItem(productId, token || undefined);
     setTimeout(() => setAnimating(false), 300);
   }
 
