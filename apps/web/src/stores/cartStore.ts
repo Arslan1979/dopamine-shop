@@ -58,16 +58,22 @@ export const useCartStore = create<CartState>()(
         } else {
           // Fetch product details and add
           fetch(`${API_URL}/products/${productId}`)
-            .then((res) => res.json())
+            .then((res) => {
+              if (!res.ok) throw new Error('Товар не найден');
+              return res.json();
+            })
             .then((data) => {
               const newItem: CartItem = {
                 id: crypto.randomUUID(),
-                productId,
+                productId: data.product.id, // UUID из ответа API
                 quantity,
                 product: data.product,
               };
               const updated = [...get().items, newItem];
               set({ items: updated, ...calculateTotals(updated) });
+            })
+            .catch(() => {
+            // silently fail or show toast
             });
         }
         set({ isOpen: true });
