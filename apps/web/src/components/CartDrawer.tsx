@@ -10,17 +10,20 @@ export default function CartDrawer() {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop — добавлен key */}
           <motion.div
+            key="cart-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             onClick={closeCart}
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
           />
 
-          {/* Drawer */}
+          {/* Drawer — добавлен key */}
           <motion.div
+            key="cart-drawer"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}

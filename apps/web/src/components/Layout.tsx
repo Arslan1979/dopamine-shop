@@ -125,7 +125,7 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <CartDrawer />
+      {useCartStore((s) => s.isOpen) && <CartDrawer />}
     </div>
   );
 }
