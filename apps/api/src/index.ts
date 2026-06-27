@@ -18,7 +18,7 @@ app.use(cors({ origin: process.env.WEB_URL || 'http://localhost:3000', credentia
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
+app.use('/api', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/achievements', achievementRoutes);
