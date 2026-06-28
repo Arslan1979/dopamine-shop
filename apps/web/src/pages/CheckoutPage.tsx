@@ -17,7 +17,7 @@ const steps = [
 export default function CheckoutPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const { items, totalItems } = useCartStore();
-  const { step, shippingData, deliveryData, setStep, setShippingData, setDeliveryData } = useCheckoutStore();
+  const { step, shippingData, deliveryData, setStep, setShippingData, setDeliveryData, setCoinsToSpend } = useCheckoutStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -99,7 +99,10 @@ export default function CheckoutPage() {
               shippingData={shippingData}
               deliveryData={deliveryData}
               onBack={() => setStep(2)}
-              onConfirm={() => navigate('/payment')}
+              onConfirm={(coins) => {
+                setCoinsToSpend(coins);
+                navigate('/payment');
+              }}
               isProcessing={false}
             />
           )}

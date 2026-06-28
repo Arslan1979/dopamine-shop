@@ -5,6 +5,8 @@ import { ShoppingCart, Heart, ChevronLeft, ChevronRight, ArrowLeft } from 'lucid
 import type { Product } from '@dopamine-shop/shared-types';
 import ProductCard from '../components/ProductCard';
 import { useCartStore } from '../stores/cartStore';
+import { useQuestStore } from '../stores/questStore';
+import { useAuth } from '../hooks/useAuth';
 import WishlistHeart from '../components/WishlistHeart';
 import { useWishlistStore } from '../stores/wishlistStore';
 
@@ -20,6 +22,8 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const isInWishlist = useWishlistStore((s) => s.isInWishlist);
   const addItem = useCartStore((s) => s.addItem);
+  const { trackAction } = useQuestStore();
+  const { isAuthenticated, accessToken } = useAuth();
 
   useEffect(() => {
     async function fetchProduct() {
@@ -30,6 +34,10 @@ export default function ProductDetailPage() {
         const data = await res.json();
         setProduct(data.product);
         setRelatedProducts(data.relatedProducts);
+        // Track product view
+        if (isAuthenticated && accessToken) {
+          trackAction(accessToken, 'view_product');
+        }
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -37,7 +45,7 @@ export default function ProductDetailPage() {
       }
     }
     fetchProduct();
-  }, [slug]);
+  }, [slug, isAuthenticated, accessToken]);
 
   if (loading) {
     return (
@@ -166,7 +174,12 @@ export default function ProductDetailPage() {
             </div>
 
             <button
-              onClick={() => addItem(product.slug, quantity)}
+              onClick={() => {
+                addItem(product.slug, quantity);
+                if (isAuthenticated && accessToken) {
+                  trackAction(accessToken, 'add_to_cart');
+                }
+              }}
               className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white py-3 rounded-xl font-medium hover:bg-primary-700 transition-colors active:scale-[0.98]"
             >
               <ShoppingCart className="w-5 h-5" />

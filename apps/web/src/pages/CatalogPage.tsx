@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useProductStore } from '../stores/productStore';
 import { useCartStore } from '../stores/cartStore';
+import { useQuestStore } from '../stores/questStore';
+import { useAuth } from '../hooks/useAuth';
 import ProductGrid from '../components/ProductGrid';
 import FilterBar from '../components/FilterBar';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -8,13 +10,21 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 export default function CatalogPage() {
   const { pagination, fetchCategories, setPage } = useProductStore();
   const addItem = useCartStore((s) => s.addItem);
+  const { trackAction } = useQuestStore();
+  const { isAuthenticated, accessToken } = useAuth();
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+    if (isAuthenticated && accessToken) {
+      trackAction(accessToken, 'visit_catalog');
+    }
+  }, [isAuthenticated, accessToken]);
 
   const handleAddToCart = (productId: string, quantity: number) => {
     addItem(productId, quantity);
+    if (isAuthenticated && accessToken) {
+      trackAction(accessToken, 'add_to_cart');
+    }
   };
 
   return (
