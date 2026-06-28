@@ -1,16 +1,24 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useCartStore } from '../stores/cartStore';
+import { useBalanceStore } from '../stores/balanceStore';
 import CartDrawer from './CartDrawer';
-import { ShoppingBag, LogOut, Menu, X, ClipboardList, Trophy, Heart } from 'lucide-react';
-import { useState } from 'react';
+import { ShoppingBag, LogOut, Menu, X, ClipboardList, Trophy, Heart, Coins, Sparkles } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 export default function Layout() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, accessToken } = useAuth();
   const { totalItems, openCart } = useCartStore();
+  const { balance, fetchBalance } = useBalanceStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+
+  useEffect(() => {
+    if (isAuthenticated && accessToken) {
+      fetchBalance(accessToken);
+    }
+  }, [isAuthenticated, accessToken]);
 
   const navLinks = [
     { to: '/', label: 'Главная' },
@@ -18,7 +26,7 @@ export default function Layout() {
     ...(isAuthenticated ? [
       { to: '/orders', label: 'Заказы' },
       { to: '/wishlist', label: 'Желания' },
-      { to: '/achievements', label: 'Достижения' },
+      { to: '/rewards', label: 'Награды' },
     ] : []),
   ];
 
@@ -48,6 +56,17 @@ export default function Layout() {
           </nav>
 
           <div className="flex items-center gap-3">
+            {/* Coin balance */}
+            {isAuthenticated && (
+              <Link
+                to="/rewards"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors"
+              >
+                <Coins className="w-4 h-4 text-amber-500" />
+                <span>{balance}</span>
+              </Link>
+            )}
+
             <button
               onClick={openCart}
               className="relative p-2 hover:bg-slate-100 rounded-lg transition-colors"

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useAuthStore } from '../stores/authStore';
+import { useQuestStore } from '../stores/questStore';
 
 interface WishlistHeartProps {
   product: {
@@ -16,8 +17,9 @@ interface WishlistHeartProps {
 }
 
 export default function WishlistHeart({ product }: WishlistHeartProps) {
-  const token = useAuthStore((s) => s.token);
+  const accessToken = useAuthStore((s) => s.accessToken);
   const { toggle, isInWishlist } = useWishlistStore();
+  const { trackAction } = useQuestStore();
   const active = isInWishlist(product.id);
   const [animating, setAnimating] = useState(false);
 
@@ -25,7 +27,11 @@ export default function WishlistHeart({ product }: WishlistHeartProps) {
     e.preventDefault();
     e.stopPropagation();
     setAnimating(true);
-    await toggle(product, token);
+    await toggle(product, accessToken);
+    // Track quest if adding (not removing)
+    if (!active && accessToken) {
+      trackAction(accessToken, 'add_to_wishlist');
+    }
     setTimeout(() => setAnimating(false), 300);
   }
 
