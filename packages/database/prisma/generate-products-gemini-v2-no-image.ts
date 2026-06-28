@@ -7,11 +7,13 @@ const prisma = new PrismaClient();
 
 // ==================== КОНФИГУРАЦИЯ GOOGLE GEMINI ====================
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || '';
+
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 const GEMINI_TEXT_MODEL = 'gemini-2.5-flash';
 
-const PRODUCTS_COUNT = 20;
+const PRODUCTS_COUNT = 10;
 const USE_DEMO_FALLBACK = true;
 const SAVE_IMAGES_LOCALLY = true;
 
@@ -148,11 +150,67 @@ Rules:
 }
 
 // ==================== UNSPLASH: Изображения ====================
-function getUnsplashImage(query: string): string {
-  const encoded = encodeURIComponent(query);
-  return `https://source.unsplash.com/800x800/?${encoded}`;
+interface UnsplashPhoto {
+  urls: {
+    regular: string;
+    small: string;
+  };
+  user: {
+    name: string;
+    links: {
+      html: string;
+    };
+  };
 }
 
+function getFallbackImage(query: string): string {
+  const seed = query.replace(/[^a-zA-Z0-9а-яА-Я]/g, '-').toLowerCase().slice(0, 24);
+  return `https://picsum.photos/seed/${seed}/800/800`;
+}
+
+async function getProductImage(query: string): Promise<string> {
+  if (!UNSPLASH_ACCESS_KEY) {
+    console.log('   ℹ️ UNSPLASH_ACCESS_KEY не задан, fallback на Picsum');
+    return getFallbackImage(query);
+  }
+
+  try {
+    const url = new URL('https://api.unsplash.com/photos/random');
+    url.searchParams.set('query', query);
+    url.searchParams.set('orientation', 'squarish');
+    url.searchParams.set('count', '1');
+
+    const res = await fetch(url.toString(), {
+      headers: {
+        'Authorization': `Client-ID ${UNSPLASH_ACCESS_KEY}`,
+      },
+    });
+
+    if (res.status === 403 || res.status === 429) {
+      console.log(`   ⚠️ Unsplash лимит исчерпан (${res.status}), fallback на Picsum`);
+      return getFallbackImage(query);
+    }
+
+    if (!res.ok) {
+      console.log(`   ⚠️ Unsplash ошибка ${res.status}, fallback на Picsum`);
+      return getFallbackImage(query);
+    }
+
+    const data = (await res.json()) as UnsplashPhoto[];
+
+    if (!Array.isArray(data) || data.length === 0 || !data[0].urls) {
+      return getFallbackImage(query);
+    }
+
+    const photo = data[0];
+    console.log(`   📸 Unsplash: ${photo.user.name}`);
+    return photo.urls.regular || photo.urls.small;
+
+  } catch (err: any) {
+    console.log(`   ⚠️ Ошибка сети Unsplash: ${err.message}`);
+    return getFallbackImage(query);
+  }
+}
 // ==================== ДЕМО-ТОВАРЫ ====================
 const DEMO_PRODUCTS = [
   { name: 'Механическая клавиатура Keychron K3', slug: 'keychron-k3', category: 'electronics', price: 12990, desc: 'Компактная механическая клавиатура с низкопрофильными свитчами', specs: { 'тип': 'механическая', 'подсветка': 'RGB', 'соединение': 'Bluetooth/USB' } },
@@ -185,7 +243,7 @@ async function generateDemoProducts(count: number) {
     throw new Error('Сначала создайте категории: pnpm run db:seed');
   }
 
-  console.log('🎨 Демо-режим: генерация товаров с Unsplash...');
+  console.log('🎨 Демо-режим: генерация товаров с изображениями...');
 
   const productsToAdd = DEMO_PRODUCTS.slice(0, count);
   let added = 0;
@@ -197,7 +255,8 @@ async function generateDemoProducts(count: number) {
       continue;
     }
 
-    const imageUrl = getUnsplashImage(dp.name);
+    // ← ЗДЕСЬ await
+    const imageUrl = await getProductImage(dp.name);
 
     try {
       await prisma.product.create({
@@ -267,9 +326,10 @@ async function generateProducts() {
 
       console.log(`   📝 ${productData.name}`);
 
-      // Всегда используем Unsplash для изображений (Gemini Image API недоступен)
-      const imageUrl = getUnsplashImage(productData.name);
-      console.log(`   🖼️ Unsplash: ${imageUrl.slice(0, 60)}...`);
+      // Получаем изображение через Unsplash API или fallback
+      const imageUrl = await getProductImage(productData.name);
+      console.log(`   🖼️ Image: ${imageUrl.slice(0, 70)}...`);
+
 
       productData.imageUrl = imageUrl;
 
