@@ -7,7 +7,8 @@ const prisma = new PrismaClient();
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_MODEL = 'gpt-4o-mini';
 const DALLE_MODEL = 'dall-e-3';
-const PRODUCTS_COUNT = 5; // Сколько товаров сгенерировать
+const CATEGORIES = ['Электроника', 'Мода', 'Спорт', 'Дом', 'Книги'];
+const PRODUCTS_COUNT = 20; // Сколько товаров сгенерировать
 
 interface GeneratedProduct {
   name: string;
