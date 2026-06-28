@@ -21,6 +21,11 @@ model User {
   wishlistItems WishlistItem[]
   achievements  UserAchievement[]
   streaks       Streak[]
+  balance       UserBalance?
+  level         UserLevel?
+  quests        UserQuest[]
+  dailyLogins   DailyLogin[]
+  transactions  Transaction[]
 
   @@index([email])
   @@map("users")
@@ -171,10 +176,115 @@ model Streak {
   @@map("streaks")
 }
 
+model UserBalance {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Int      @default(0) // coins balance
+  lifetimeEarned Int @default(0) // total coins earned ever
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_balances")
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  userId      String
+  amount      Int             // positive = earn, negative = spend
+  type        TransactionType
+  description String
+  relatedId   String?         // orderId or questId
+  createdAt   DateTime        @default(now())
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("transactions")
+}
+
+model UserLevel {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  level        Int      @default(1)  // 1=Bronze, 2=Silver, 3=Gold, 4=Platinum
+  experience   Int      @default(0)  // total XP
+  levelTitle   String   @default("Bronze") // Bronze, Silver, Gold, Platinum
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_levels")
+}
+
+model DailyQuest {
+  id          String   @id @default(uuid())
+  slug        String   @unique // e.g. "visit_catalog", "add_to_cart"
+  name        String
+  description String
+  icon        String   @default("Star") // lucide icon name
+  rewardCoins Int      @default(10)
+  rewardXP    Int      @default(10)
+  condition   String   // JSON: { "type": "event", "action": "visit_catalog", "count": 1 }
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  userQuests  UserQuest[]
+
+  @@map("daily_quests")
+}
+
+model UserQuest {
+  id        String    @id @default(uuid())
+  userId    String
+  questId   String
+  date      DateTime  @db.Date // quest day (UTC)
+  progress  Int       @default(0)
+  target    Int       @default(1)
+  completed Boolean   @default(false)
+  completedAt DateTime?
+  claimed   Boolean   @default(false) // reward claimed
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest     DailyQuest @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questId, date])
+  @@index([userId, date])
+  @@map("user_quests")
+}
+
+model DailyLogin {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime @db.Date // login date (UTC)
+  dayStreak Int      @default(1) // consecutive days
+  coinsEarned Int    @default(0)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("daily_logins")
+}
+
 enum OrderStatus {
   PENDING
   PROCESSING
   SHIPPED
   DELIVERED
   COMPLETED
+}
+
+enum TransactionType {
+  DAILY_BONUS
+  QUEST_REWARD
+  PURCHASE_EARN
+  PURCHASE_SPEND
+  LEVEL_UP
+  ADMIN_ADJUST
 }
