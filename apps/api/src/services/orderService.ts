@@ -1,5 +1,7 @@
 import { prisma } from '@dopamine-shop/database';
 import type { Order, OrderItem } from '@dopamine-shop/shared-types';
+import { addCoins, spendCoins } from './balanceService.js';
+import { addExperience } from './levelService.js';
 
 interface CreateOrderInput {
   userId: string;
@@ -10,19 +12,34 @@ interface CreateOrderInput {
   shippingPhone: string;
   deliveryMethod: string;
   items: { productId: string; quantity: number; price: number }[];
+  coinsToSpend?: number;
 }
 
 export async function createOrder(data: CreateOrderInput) {
-  const totalAmount = data.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const itemsTotal = data.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryPrice = data.deliveryMethod === 'standard' ? 0 : data.deliveryMethod === 'express' ? 499 : 999;
+  const coinsToSpend = data.coinsToSpend || 0;
+  const finalTotal = Math.max(0, itemsTotal + deliveryPrice - coinsToSpend);
 
-  return await prisma.$transaction(async (tx) => {
+  const order = await prisma.$transaction(async (tx) => {
+    // Spend coins if requested
+    if (coinsToSpend > 0) {
+      const balance = await tx.userBalance.findUnique({ where: { userId: data.userId } });
+      if (!balance || balance.balance < coinsToSpend) {
+        throw new Error('INSUFFICIENT_BALANCE');
+      }
+      await tx.userBalance.update({
+        where: { userId: data.userId },
+        data: { balance: { decrement: coinsToSpend } },
+      });
+    }
+
     // Create order
-    const order = await tx.order.create({
+    const newOrder = await tx.order.create({
       data: {
         userId: data.userId,
         status: 'PENDING',
-        totalAmount: totalAmount + deliveryPrice,
+        totalAmount: finalTotal,
         shippingName: data.shippingName,
         shippingAddress: data.shippingAddress,
         shippingCity: data.shippingCity,
@@ -46,7 +63,7 @@ export async function createOrder(data: CreateOrderInput) {
 
       await tx.orderItem.create({
         data: {
-          orderId: order.id,
+          orderId: newOrder.id,
           productId: item.productId,
           quantity: item.quantity,
           priceSnapshot: item.price,
@@ -61,10 +78,38 @@ export async function createOrder(data: CreateOrderInput) {
 
     // Return order with items
     return await tx.order.findUnique({
-      where: { id: order.id },
+      where: { id: newOrder.id },
       include: { items: true },
     });
   });
+
+  // Post-order gamification (outside transaction to avoid locking issues)
+  // Earn coins: 10% of order value
+  const earnedCoins = Math.floor(itemsTotal * 0.1);
+  if (earnedCoins > 0) {
+    await addCoins(data.userId, earnedCoins, 'PURCHASE_EARN', `Кешбэк за заказ #${order?.id?.slice(0, 8)}`, order?.id);
+  }
+
+  // Earn XP: 1 XP per 10 rubles spent
+  const earnedXP = Math.floor(itemsTotal / 10);
+  if (earnedXP > 0) {
+    await addExperience(data.userId, earnedXP);
+  }
+
+  // Create coin spend transaction if applicable
+  if (coinsToSpend > 0) {
+    await prisma.transaction.create({
+      data: {
+        userId: data.userId,
+        amount: -coinsToSpend,
+        type: 'PURCHASE_SPEND',
+        description: `Списание монет за заказ #${order?.id?.slice(0, 8)}`,
+        relatedId: order?.id,
+      },
+    });
+  }
+
+  return order;
 }
 
 export async function getUserOrders(userId: string, page: number = 1, limit: number = 10) {

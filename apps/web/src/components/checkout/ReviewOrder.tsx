@@ -1,12 +1,14 @@
+import { useState } from 'react';
 import { useCartStore } from '../../stores/cartStore';
+import { useBalanceStore } from '../../stores/balanceStore';
 import type { ShippingFormData, DeliveryFormData } from '../../lib/validation/checkoutSchema';
-import { MapPin, Truck, Package, CreditCard } from 'lucide-react';
+import { MapPin, Truck, Package, CreditCard, Coins } from 'lucide-react';
 
 interface ReviewOrderProps {
   shippingData: ShippingFormData;
   deliveryData: DeliveryFormData;
   onBack: () => void;
-  onConfirm: () => void;
+  onConfirm: (coinsToSpend: number) => void;
   isProcessing: boolean;
 }
 
@@ -18,8 +20,12 @@ const deliveryNames: Record<string, string> = {
 
 export default function ReviewOrder({ shippingData, deliveryData, onBack, onConfirm, isProcessing }: ReviewOrderProps) {
   const { items, totalPrice } = useCartStore();
+  const { balance } = useBalanceStore();
+  const [coinsToSpend, setCoinsToSpend] = useState(0);
   const deliveryPrice = deliveryData.method === 'standard' ? 0 : deliveryData.method === 'express' ? 499 : 999;
-  const total = totalPrice + deliveryPrice;
+  const maxCoins = Math.min(balance, totalPrice + deliveryPrice);
+  const coinDiscount = Math.min(coinsToSpend, maxCoins);
+  const total = totalPrice + deliveryPrice - coinDiscount;
 
   return (
     <div className="space-y-6">
@@ -65,6 +71,29 @@ export default function ReviewOrder({ shippingData, deliveryData, onBack, onConf
         <p className="text-sm text-slate-600">{deliveryNames[deliveryData.method]}</p>
       </div>
 
+      {/* Coins */}
+      {balance > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-amber-800 mb-3">
+            <Coins className="w-4 h-4" />
+            Использовать монеты (доступно: {balance})
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={maxCoins}
+            value={coinDiscount}
+            onChange={(e) => setCoinsToSpend(Number(e.target.value))}
+            className="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+          />
+          <div className="flex justify-between text-xs text-amber-600 mt-1">
+            <span>0</span>
+            <span className="font-medium">{coinDiscount} монет = −{coinDiscount} ₽</span>
+            <span>{maxCoins}</span>
+          </div>
+        </div>
+      )}
+
       {/* Total */}
       <div className="border-t border-slate-200 pt-4 space-y-2">
         <div className="flex justify-between text-sm">
@@ -75,9 +104,15 @@ export default function ReviewOrder({ shippingData, deliveryData, onBack, onConf
           <span className="text-slate-500">Доставка</span>
           <span>{deliveryPrice === 0 ? 'Бесплатно' : `${deliveryPrice} ₽`}</span>
         </div>
+        {coinDiscount > 0 && (
+          <div className="flex justify-between text-sm text-amber-600">
+            <span>Монеты</span>
+            <span>−{coinDiscount.toLocaleString('ru-RU')} ₽</span>
+          </div>
+        )}
         <div className="flex justify-between text-lg font-bold pt-2">
           <span>Итого</span>
-          <span>{total.toLocaleString('ru-RU')} ₽</span>
+          <span>{Math.max(0, total).toLocaleString('ru-RU')} ₽</span>
         </div>
       </div>
 
@@ -91,7 +126,7 @@ export default function ReviewOrder({ shippingData, deliveryData, onBack, onConf
           Назад
         </button>
         <button
-          onClick={onConfirm}
+          onClick={() => onConfirm(coinDiscount)}
           disabled={isProcessing || items.length === 0}
           className="flex-1 py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
         >

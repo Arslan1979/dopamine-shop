@@ -14,6 +14,7 @@ import OrderListPage from './pages/OrderListPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import AchievementsPage from './pages/AchievementsPage';
 import WishlistPage from './pages/WishlistPage';
+import RewardsPage from './pages/RewardsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -58,6 +59,9 @@ export default function App() {
           } />
           <Route path="/wishlist" element={
             <ProtectedRoute><WishlistPage /></ProtectedRoute>
+          } />
+          <Route path="/rewards" element={
+            <ProtectedRoute><RewardsPage /></ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

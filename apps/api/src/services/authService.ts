@@ -35,13 +35,28 @@ export async function registerUser(data: RegisterInput) {
   }
 
   const passwordHash = await bcrypt.hash(data.password, 12);
-  const user = await prisma.user.create({
-    data: {
-      email: data.email,
-      password: passwordHash,
-      name: data.name,
-    },
-    select: { id: true, email: true, name: true, soundEnabled: true },
+
+  // Create user with balance and level in transaction
+  const user = await prisma.$transaction(async (tx) => {
+    const newUser = await tx.user.create({
+      data: {
+        email: data.email,
+        password: passwordHash,
+        name: data.name,
+      },
+      select: { id: true, email: true, name: true, soundEnabled: true },
+    });
+
+    // Initialize gamification data
+    await tx.userBalance.create({
+      data: { userId: newUser.id, balance: 0, lifetimeEarned: 0 },
+    });
+
+    await tx.userLevel.create({
+      data: { userId: newUser.id, level: 1, experience: 0, levelTitle: 'Bronze' },
+    });
+
+    return newUser;
   });
 
   const tokens = generateTokens(user.id);

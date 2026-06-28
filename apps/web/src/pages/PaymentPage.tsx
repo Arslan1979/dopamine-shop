@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useCartStore } from '../stores/cartStore';
 import { useCheckoutStore } from '../stores/checkoutStore';
+import { useQuestStore } from '../stores/questStore';
 import PaymentProcessing from '../components/PaymentProcessing';
 import type { Order } from '@dopamine-shop/shared-types';
 
@@ -11,7 +12,8 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 export default function PaymentPage() {
   const { accessToken } = useAuth();
   const { items, clearCart, totalPrice } = useCartStore();
-  const { shippingData, deliveryData, clearCheckout } = useCheckoutStore();
+  const { shippingData, deliveryData, coinsToSpend, clearCheckout } = useCheckoutStore();
+  const { trackAction } = useQuestStore();
   const navigate = useNavigate();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [order, setOrder] = useState<Order | null>(null);
@@ -47,6 +49,7 @@ export default function PaymentPage() {
           shippingPostalCode: shippingData!.postalCode,
           shippingPhone: shippingData!.phone,
           deliveryMethod: deliveryData!.method,
+          coinsToSpend: coinsToSpend || 0,
           items: items.map((i) => ({
             productId: i.productId,
             quantity: i.quantity,
@@ -61,6 +64,10 @@ export default function PaymentPage() {
       setStatus('success');
       clearCart();
       clearCheckout();
+      // Track quest
+      if (accessToken) {
+        trackAction(accessToken, 'place_order');
+      }
     } catch {
       setStatus('error');
     }
