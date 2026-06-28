@@ -7,7 +7,11 @@ import cartRoutes from './routes/cart.js';
 import orderRoutes from './routes/orders.js';
 import achievementRoutes from './routes/achievements.js';
 import wishlistRoutes from './routes/wishlist.js';
+import balanceRoutes from './routes/balance.js';
+import questRoutes from './routes/quests.js';
+import levelRoutes from './routes/levels.js';
 import { startOrderStatusCron } from './cron/orderStatusCron.js';
+import { seedDefaultQuests } from './services/questService.js';
 
 dotenv.config();
 
@@ -23,6 +27,9 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/balance', balanceRoutes);
+app.use('/api/quests', questRoutes);
+app.use('/api/level', levelRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -31,4 +38,9 @@ app.get('/api/health', (_req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 API server running on http://localhost:${PORT}`);
   startOrderStatusCron();
+
+  // Seed default daily quests
+  seedDefaultQuests().catch((err) => {
+    console.error('Failed to seed quests:', err);
+  });
 });

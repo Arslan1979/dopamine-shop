@@ -9,6 +9,8 @@ import {
 } from '../services/authService.js';
 import { verifyToken } from '../middleware/auth.js';
 import type { AuthRequest } from '../middleware/auth.js';
+import { getOrCreateBalance } from '../services/balanceService.js';
+import { getUserLevelData } from '../services/levelService.js';
 
 const router = Router();
 
@@ -97,7 +99,18 @@ router.get('/me', verifyToken, async (req: AuthRequest, res) => {
       res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Пользователь не найден' } });
       return;
     }
-    res.json({ user });
+
+    // Get gamification data
+    const balance = await getOrCreateBalance(req.userId!);
+    const level = await getUserLevelData(req.userId!);
+
+    res.json({
+      user: {
+        ...user,
+        balance: { balance: balance.balance, lifetimeEarned: balance.lifetimeEarned },
+        level,
+      },
+    });
   } catch (err) {
     console.error('Me error:', err);
     res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Внутренняя ошибка сервера' } });

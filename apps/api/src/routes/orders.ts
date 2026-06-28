@@ -18,6 +18,7 @@ const createOrderSchema = z.object({
     quantity: z.number().int().min(1).max(99),
     price: z.number().positive(),
   })).min(1),
+  coinsToSpend: z.number().int().min(0).optional(),
 });
 
 router.post('/', verifyToken, async (req: AuthRequest, res) => {
