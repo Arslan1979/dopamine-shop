@@ -2,57 +2,52 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useCartStore } from '../stores/cartStore';
+import { useWishlistStore } from '../stores/wishlistStore';
 import { Heart, ShoppingCart, Trash2, Sparkles } from 'lucide-react';
-import type { Product } from '@dopamine-shop/shared-types';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
-
-interface WishlistItem {
-  id: string;
-  product: Product;
-  addedAt: string;
-}
 
 export default function WishlistPage() {
   const { accessToken } = useAuth();
   const addItem = useCartStore((s) => s.addItem);
-  const [items, setItems] = useState<WishlistItem[]>([]);
+  const { items, toggle } = useWishlistStore();
   const [loading, setLoading] = useState(true);
 
+  // Синхронизация с сервером при авторизации
   useEffect(() => {
-    fetchWishlist();
-  }, []);
-
-  async function fetchWishlist() {
-    try {
-      const res = await fetch(`${API_URL}/wishlist`, {
-        headers: { Authorization: `Bearer ${accessToken || ''}` },
-      });
-      if (!res.ok) throw new Error('Ошибка загрузки');
-      const data = await res.json();
-      setItems(data.items);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    async function syncWithServer() {
+      if (!accessToken) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${API_URL}/wishlist`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Обновляем store серверными данными
+          useWishlistStore.setState({ items: data.items || [] });
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     }
-  }
+    syncWithServer();
+  }, [accessToken]);
 
   async function removeItem(id: string) {
-    try {
-      await fetch(`${API_URL}/wishlist/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${accessToken || ''}` },
-      });
-      setItems((prev) => prev.filter((i) => i.id !== id));
-    } catch (err) {
-      console.error(err);
-    }
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+    
+    // Удаляем через store (и API если авторизован)
+    await toggle(item.product, accessToken);
   }
 
   function moveToCart(productId: string) {
     addItem(productId, 1);
-    // Remove from wishlist after adding to cart
     const item = items.find((i) => i.product.id === productId);
     if (item) removeItem(item.id);
   }
@@ -112,7 +107,7 @@ export default function WishlistPage() {
                   {item.product.price.toLocaleString('ru-RU')} ₽
                 </p>
                 <button
-                  onClick={() => moveToCart(item.product.id)}
+                  onClick={() => moveToCart(item.product.slug)}
                   className="w-full mt-3 flex items-center justify-center gap-2 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
                 >
                   <ShoppingCart className="w-4 h-4" />
@@ -124,12 +119,11 @@ export default function WishlistPage() {
         </div>
       )}
 
-      {/* Fake sale notification */}
       {items.length > 0 && (
         <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
           <Sparkles className="w-5 h-5 text-amber-500" />
           <p className="text-sm text-amber-800">
-            <span className="font-medium">Фейковая распродажа!</span> Товары в вашем списке желаний со скидкой 20% (только сегодня, не настоящая)
+            <span className="font-medium">Фейковая распродажа!</span> Товаров в вашем списке желаний со скидкой 20% (только сегодня, не настоящая)
           </p>
         </div>
       )}
