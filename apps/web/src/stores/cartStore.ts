@@ -123,8 +123,15 @@ export const useCartStore = create<CartState>()(
       },
     }),
     {
-      name: 'dopamine-cart',
-      partialize: (state) => ({ items: state.items }),
+  name: 'dopamine-cart',
+  partialize: (state) => ({ items: state.items }),
+  onRehydrateStorage: () => (state) => {
+    if (state && state.items) {
+      const totals = calculateTotals(state.items);
+      state.totalItems = totals.totalItems;
+      state.totalPrice = totals.totalPrice;
     }
+  },
+}
   )
 );
